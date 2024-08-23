@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="layout/basic">
+<head>
+    <title>게시글 등록</title>
+</head>
+<body>
+<h1>게시글 등록하기</h1>
+<form th:action="@{/save-url-options}" method="post">
+    <label for="url">URL:</label>
+    <input type="text" id="url" name="url" required>
+
+    <label for="chunkSize">청크 사이즈:</label>
+    <input type="number" id="chunkSize" name="chunkSize" required>
+
+    <label for="chunkOverlap">청크 오버랩:</label>
+    <input type="number" id="chunkOverlap" name="chunkOverlap" required>
+
+    <label for="divClasses">Div Classes (쉼표로 구분):</label>
+    <input type="text" id="divClasses" name="divClasses" required>
+
+    <button type="submit">저장</button>
+</form>
+
+<a th:href="@{/board}">목록으로 돌아가기</a>
+</body>

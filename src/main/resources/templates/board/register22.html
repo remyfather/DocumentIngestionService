@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="layout/basic">
+<th:block layout:fragment="title">
+    <title>글작성 페이지</title>
+</th:block>
+
+<th:block layout:fragment="content">
+    <div class="page_tits">
+        <h3>게시판 관리</h3>
+        <p class="path"><strong>현재 위치 :</strong> <span>게시판 관리</span> <span>리스트형</span> <span>글작성</span></p>
+    </div>
+
+    <div class="content">
+        <section>
+            <form id="saveForm" method="post" autocomplete="off">
+                <!--/* 게시글 수정인 경우, 서버로 전달할 게시글 번호 (PK) */-->
+                <input type="hidden" id="id" name="id" th:if="${post != null}" th:value="${post.id}" />
+
+                <!--/* 서버로 전달할 공지글 여부 */-->
+                <input type="hidden" id="noticeYn" name="noticeYn" />
+                <table class="tb tb_row">
+                    <colgroup>
+                        <col style="width:15%;" /><col style="width:35%;" /><col style="width:15%;" /><col style="width:35%;" />
+                    </colgroup>
+                    <tbody>
+                    <tr>
+                        <th>URL <span class="es">필수 입력</span></th>
+                        <td colspan="3"><input type="text" id="url" name="url" maxlength="50" placeholder="URL을 입력하세요" /></td>
+                    </tr>
+
+                    <tr>
+                        <th>청크 사이즈 <span class="es">필수 입력</span></th>
+                        <td colspan="1.5"><input type="number" id="chunkSize" name="chunkSize" maxlength="10" placeholder="이름을 입력해 주세요." /></td>
+                        <th>청크 오버랩 <span class="es">필수 입력</span></th>
+                        <td colspan="1.5"><input type="number" id="chunkOverlap" name="chunkOverlap" maxlength="10" placeholder="이름을 입력해 주세요." /></td>
+                    </tr>
+                    <tr>
+                        <th>Div Classes (쉼표로 구분): <span class="es">필수 입력</span></th>
+                        <td colspan="3"><input type="text" id="divClasses" name="divClasses" maxlength="10" placeholder="이름을 입력해 주세요." /></td>
+                    </tr>
+
+                    </tbody>
+                </table>
+            </form>
+            <p class="btn_set">
+                <button type="button" id="saveBtn" onclick="savePost();" class="btns btn_st3 btn_mid">저장</button>
+                <a th:href="@{/post/list.do}" class="btns btn_bdr3 btn_mid">뒤로</a>
+            </p>
+        </section>
+    </div> <!--/* .content */-->
+</th:block>
+
+<th:block layout:fragment="script">
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+
+            // 게시글 저장
+            function savePost() {
+                const form = document.getElementById('saveForm');
+                const fields = [form.url, form.chunkSize, form.chunkOverlap, form.divClasses];
+                const fieldNames = ['URL', '청크 사이즈', '청크 오버랩', 'Div Classes'];
+
+                for (let i = 0, len = fields.length; i < len; i++) {
+                    isValid(fields[i], fieldNames[i]);
+                }
+
+                document.getElementById('saveBtn').disabled = true;
+                form.action = '/post/save.do';
+                form.submit();
+            }
+
+        /*]]>*/
+    </script>
+</th:block>
+</html>

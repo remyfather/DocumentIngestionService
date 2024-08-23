@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>게시글 상세</title>
+</head>
+<body>
+<h1>게시글 상세</h1>
+
+<p><strong>URL:</strong> <span th:text="${urlOptions.url}"></span></p>
+<p><strong>청크 사이즈:</strong> <span th:text="${urlOptions.chunkSize}"></span></p>
+<p><strong>청크 오버랩:</strong> <span th:text="${urlOptions.chunkOverlap}"></span></p>
+<p><strong>Div Classes:</strong> <span th:text="${urlOptions.divClasses}"></span></p>
+
+<form th:action="@{/chunk}" method="post">
+    <input type="hidden" name="id" th:value="${urlOptions.id}">
+    <button type="submit">청킹하기</button>
+</form>
+
+<a th:href="@{/board}">목록으로 돌아가기</a>
+</body>
+</html>

@@ -24,19 +24,31 @@ repositories {
 }
 
 dependencies {
+	// Spring Boot Web Starter for building REST APIs
 	implementation 'org.springframework.boot:spring-boot-starter-web'
-	// Apache Tika for PDF text extraction
-	implementation 'org.apache.tika:tika-core:2.8.0'
-	implementation 'org.apache.tika:tika-parsers:2.8.0'
+
+	implementation 'com.mysql:mysql-connector-j'
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+
+	implementation 'nz.net.ultraq.thymeleaf:thymeleaf-layout-dialect' /* Thymeleaf Layout */
 
 	// Jsoup for HTML parsing
 	implementation 'org.jsoup:jsoup:1.15.3'
 
+	// Lombok for reducing boilerplate code
 	compileOnly 'org.projectlombok:lombok'
-	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	annotationProcessor 'org.projectlombok:lombok'
+
+	// Spring Boot DevTools for live reload during development
+	//developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+	// Jackson for JSON handling
+	implementation 'com.fasterxml.jackson.core:jackson-databind:2.14.2'
+
+	// Spring Boot testing dependencies
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 tasks.named('test') {
