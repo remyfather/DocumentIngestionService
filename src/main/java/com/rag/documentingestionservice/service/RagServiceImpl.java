@@ -2,6 +2,9 @@ package com.rag.documentingestionservice.service;
 
 import com.rag.documentingestionservice.dto.UrlExtractRequestDto;
 import com.rag.documentingestionservice.dto.UrlExtractResponseDto;
+import com.rag.documentingestionservice.dto.ChunkedDataDto;
+import com.rag.documentingestionservice.repository.ChunkedDataElasticsearchRepository;
+import lombok.RequiredArgsConstructor;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
@@ -12,16 +15,19 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Implementation of the RagService interface.
  * Handles the extraction of data from a given URL and chunks the extracted data.
  */
 @Service
-public class UrlTextExtractorService implements RagService{
+@RequiredArgsConstructor
+public class RagServiceImpl implements RagService{
 
-    private static final Logger logger = LoggerFactory.getLogger(UrlTextExtractorService.class);
+    private static final Logger logger = LoggerFactory.getLogger(RagServiceImpl.class);
 
+    private final ChunkedDataElasticsearchRepository chunkedDataElasticsearchRepository;
 
     @Override
     public UrlExtractResponseDto extractAndChunkData(UrlExtractRequestDto requestDto) {
@@ -84,6 +90,43 @@ public class UrlTextExtractorService implements RagService{
         }
 
         logger.debug("Chunking complete: {} chunks created.", chunks.size());
+
+
+
         return chunks;
+    }
+
+    /**
+     * 청크된 데이터를 Elasticsearch에 저장하는 메서드
+     *
+     * @param chunks 청크된 데이터 리스트
+     * @param sourceUrl 원본 URL
+     */
+    private void saveChunksToElasticsearch(List<String> chunks, String sourceUrl) {
+        ChunkedDataDto chunkedData = new ChunkedDataDto();
+        chunkedData.setId(UUID.randomUUID().toString()); // 고유 ID 생성
+        chunkedData.setContent(chunks); // 전체 chunk 리스트를 content로 설정
+        chunkedData.setSourceUrl(sourceUrl);
+
+        // 전체 chunks의 길이를 합산하여 chunkSize 설정
+        int totalChunkSize = chunks.stream().mapToInt(String::length).sum();
+        chunkedData.setChunkSize(totalChunkSize);
+
+        // Elasticsearch에 저장
+        chunkedDataElasticsearchRepository.saveChunkedData(chunkedData);
+        logger.debug("Saved chunked data to Elasticsearch with ID: {}", chunkedData.getId());
+    }
+
+    @Override
+    public void processAndSaveChunkedData(ChunkedDataDto chunkedDataDto) {
+        logger.info("Processing and saving chunked data: {}", chunkedDataDto.getId());
+        chunkedDataElasticsearchRepository.saveChunkedData(chunkedDataDto);
+        logger.info("Chunked data saved successfully");
+    }
+
+    public void processAndSaveChunkedData2(ChunkedDataDto chunkedDataDto) {
+        logger.info("Processing and saving chunked data: {}", chunkedDataDto.getId());
+        chunkedDataElasticsearchRepository.saveChunkedData(chunkedDataDto);
+        logger.info("Chunked data saved successfully");
     }
 }
