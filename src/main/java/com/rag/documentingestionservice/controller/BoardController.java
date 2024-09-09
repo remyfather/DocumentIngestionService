@@ -1,6 +1,5 @@
 package com.rag.documentingestionservice.controller;
 
-import com.rag.documentingestionservice.dto.UrlExtractRequestDto;
 import com.rag.documentingestionservice.dto.UrlOptionsDto;
 import com.rag.documentingestionservice.entity.UrlOptions;
 import com.rag.documentingestionservice.service.BoardService;

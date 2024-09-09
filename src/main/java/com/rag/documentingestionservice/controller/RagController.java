@@ -5,18 +5,29 @@ import com.rag.documentingestionservice.dto.UrlExtractRequestDto;
 import com.rag.documentingestionservice.dto.UrlExtractResponseDto;
 import com.rag.documentingestionservice.dto.UrlOptionsDto;
 import com.rag.documentingestionservice.dto.ChunkedDataDto;
+import com.rag.documentingestionservice.dto.embedding.UpstageEmbeddingResponse;
+import com.rag.documentingestionservice.dto.layoutanalysis.LayoutAnalysisResponse;
+import com.rag.documentingestionservice.dto.search.SearchResponseDto;
+import com.rag.documentingestionservice.dto.search.SearchResponseDto2;
 import com.rag.documentingestionservice.entity.UrlOptions;
 import com.rag.documentingestionservice.service.BoardService;
 import com.rag.documentingestionservice.service.RagService;
+import com.rag.documentingestionservice.service.SearchService;
+import com.rag.documentingestionservice.service.TaskStatusService;
+import com.rag.documentingestionservice.service.layoutAnlaysis.ChunkSaveService;
+import com.rag.documentingestionservice.service.layoutAnlaysis.LayoutAnalysisService;
+import com.rag.documentingestionservice.service.prompt.SolarLlmService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.Future;
 
 
 @RestController
@@ -30,6 +41,12 @@ public class RagController {
 
     private final RagService ragService;
     private final BoardService boardService;
+    private final TaskStatusService taskStatusService;
+    private final SearchService searchService;
+    private final SolarLlmService solarLlmService;
+    private final LayoutAnalysisService layoutAnalysisService;
+    private final ChunkSaveService chunkSaveService;
+
 
     @PostMapping("/extract")
     public ResponseEntity<UrlExtractResponseDto> extractData(@RequestBody UrlExtractRequestDto requestDto) {
@@ -282,5 +299,128 @@ public class RagController {
     @PostMapping("/index-process")
     public void IndexProcess(@RequestBody ChunkedDataDto chunkedData) {
         ragService.processAndSaveChunkedData(chunkedData);
+    }
+
+
+
+
+    /**
+     * RagController에서 비동기 작업을 실행하고, 작업의 상태를 확인할 수 있는 API를 제공합니다.
+     */
+
+    @PostMapping("/process/async/{id}")
+    public ResponseEntity<String> processByIdAsync(@PathVariable("id") Long id) {
+        try {
+            UrlOptions urlOptions = boardService.getUrlOptionsById(id);
+            UrlExtractRequestDto requestDto = new UrlExtractRequestDto(
+                    urlOptions.getUrl(),
+                    urlOptions.getDivClasses(),
+                    urlOptions.getChunkSize(),
+                    urlOptions.getChunkOverlap()
+            );
+
+            String taskId = UUID.randomUUID().toString();
+            taskStatusService.updateTaskStatus(taskId, "Processing");
+
+            Future<String> result = ragService.processAndSaveChunkedDataAsync(requestDto);
+
+            // 작업이 완료되면 상태를 업데이트하는 별도의 스레드를 시작
+            new Thread(() -> {
+                try {
+                    String status = result.get();
+                    taskStatusService.updateTaskStatus(taskId, status);
+                } catch (Exception e) {
+                    taskStatusService.updateTaskStatus(taskId, "Failed");
+                }
+            }).start();
+
+            return ResponseEntity.ok("Task started with ID: " + taskId);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to start task");
+        }
+    }
+
+    @GetMapping("/process/status/{taskId}")
+    public ResponseEntity<String> getTaskStatus(@PathVariable("taskId") String taskId) {
+        String status = taskStatusService.getTaskStatus(taskId);
+        return ResponseEntity.ok("Task ID: " + taskId + " is " + status);
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<SearchResponseDto> searchByQuery(@RequestParam("query") String query) {
+        logger.info("query 들어오는 것 확인 -> {}", query);
+        SearchResponseDto response = searchService.searchByQuery2(query);
+        logger.debug("Response 들어오는거 확인 -> {}", response.getAnswer());
+        return ResponseEntity.ok(response);
+    }
+
+
+    @GetMapping("/search_and_embed")
+    public ResponseEntity<SearchResponseDto2> searchAndEmbed(@RequestParam("query") String query) {
+        logger.info("query 들어오는 것 확인 -> {}", query);
+        SearchResponseDto2 response = searchService.searchAndEmbed(query);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/search_and_embed2")
+    public ResponseEntity<SearchResponseDto2> searchAndEmbed2(@RequestParam("query") String query) {
+        logger.info("query 들어오는 것 확인 -> {}", query);
+        SearchResponseDto2 response = searchService.searchAndEmbed2(query);
+        return ResponseEntity.ok(response);
+    }
+
+
+    @GetMapping("/search_and_embed3")
+    public ResponseEntity<String> searchAndEmbed3(@RequestParam("query") String query) {
+        logger.info("query 들어오는 것 확인 -> {}", query);
+        SearchResponseDto2 response = searchService.searchAndEmbed2(query);
+        System.out.println("리스판스"+response);
+
+        // 상위 K개 문서를 기반으로 LLM에 요청
+        String llmAnswer = solarLlmService.getAnswerFromLlm2(query, response.getDocuments());
+
+        System.out.println("asdasdasdasdasdasd"+llmAnswer);
+
+        return ResponseEntity.ok(llmAnswer);
+    }
+
+
+    /**
+     * 문서 분석을 위한 테스트 엔드포인트
+     * @param file 문서 파일 (예: PDF, 이미지)
+     * @param ocr OCR 옵션 (기본값: true)
+     * @return 레이아웃 분석 결과
+     */
+    @PostMapping("/test/layout-analyze")
+    public ResponseEntity<LayoutAnalysisResponse> analyzeDocument(@RequestParam("file") MultipartFile file,
+                                                                  @RequestParam(value = "ocr", defaultValue = "true") boolean ocr) {
+        try {
+            logger.info("문서 레이아웃 분석 요청 시작");
+            LayoutAnalysisResponse response = layoutAnalysisService.analyzeDocument(file, ocr);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("문서 레이아웃 분석 중 오류 발생: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(null);
+        }
+    }
+
+    /**
+     * 청킹된 데이터를 저장하기 위한 테스트 엔드포인트
+     * @param documentId 문서 ID
+     * @param sourceFileName 원본 파일 이름
+     * @return 성공 메시지 또는 오류 메시지
+     */
+    @PostMapping("/save-chunks")
+    public ResponseEntity<String> saveChunkedData(@RequestParam("documentId") String documentId,
+                                                  @RequestParam("sourceFileName") String sourceFileName,
+                                                  @RequestBody LayoutAnalysisResponse layoutAnalysisResponse) {
+        try {
+            logger.info("청킹된 데이터 저장 요청 시작");
+            chunkSaveService.saveChunkedData(layoutAnalysisResponse.getElements(), documentId, sourceFileName);
+            return ResponseEntity.ok("청킹된 데이터가 성공적으로 저장되었습니다.");
+        } catch (Exception e) {
+            logger.error("청킹된 데이터를 저장하는 동안 오류 발생: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body("청킹된 데이터를 저장하는 동안 오류가 발생했습니다: " + e.getMessage());
+        }
     }
 }

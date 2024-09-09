@@ -10,12 +10,16 @@ import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.AsyncResult;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 
 /**
  * Implementation of the RagService interface.
@@ -128,5 +132,35 @@ public class RagServiceImpl implements RagService{
         logger.info("Processing and saving chunked data: {}", chunkedDataDto.getId());
         chunkedDataElasticsearchRepository.saveChunkedData(chunkedDataDto);
         logger.info("Chunked data saved successfully");
+    }
+
+    /**
+     * 비동기 작업을 처리하는 코드는 @Async 어노테이션을 사용하여 정의되어 있습니다.
+     * 이 작업은 CompletableFuture를 반환하여 비동기적으로 실행되며, 작업이 완료되면 상태를 업데이트할 수 있습니다.
+     * processAndSaveChunkedDataAsync 메서드는 데이터를 추출하고 청킹하며, 이를 엘라스틱서치에 저장합니다.
+     * 작업이 완료되면 "Success" 또는 "Failure" 상태를 반환합니다.
+     */
+
+    @Async
+    public CompletableFuture<String> processAndSaveChunkedDataAsync(UrlExtractRequestDto requestDto) {
+        try {
+            // 데이터 추출 및 청킹 작업
+            UrlExtractResponseDto responseDto = extractAndChunkData(requestDto);
+
+            // ChunkedDataDto에 전체 청크 리스트를 설정
+            ChunkedDataDto chunkedDataDto = new ChunkedDataDto();
+            chunkedDataDto.setId(UUID.randomUUID().toString());
+            chunkedDataDto.setContent(responseDto.getChunks()); // 전체 청크 리스트를 설정
+            chunkedDataDto.setChunkSize(responseDto.getChunks().size());
+            chunkedDataDto.setSourceUrl(requestDto.getUrl());
+
+            // 엘라스틱서치에 저장
+            chunkedDataElasticsearchRepository.saveChunkedData(chunkedDataDto);
+
+            return CompletableFuture.completedFuture("Success");
+        } catch (Exception e) {
+            // 예외 발생 시 "Failure" 반환
+            return CompletableFuture.completedFuture("Failure");
+        }
     }
 }
